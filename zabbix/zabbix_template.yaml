@@ -1,0 +1,209 @@
+zabbix_export:
+  version: '7.0'
+  date: '2026-07-24T00:00:00Z'
+  groups:
+    - group:
+        name: Templates
+    - group:
+        name: '1C Healthchecks'
+  templates:
+    - template: 'Template 1C Web Client Healthcheck'
+      name: 'Template 1C Web Client Healthcheck'
+      description: 'Healthcheck template for 1C Web Client. Receives full JSON report and extracts fields via JSONPath.'
+      groups:
+        - group:
+            name: Templates
+        - group:
+            name: '1C Healthchecks'
+      items:
+        - name: 'Full JSON Report'
+          type: TRAPPER
+          key: '1c.healthcheck.report'
+          description: 'Full JSON report from healthcheck. Dependent items extract fields via JSONPath preprocessing.'
+          value_type: TEXT
+          history: 7d
+          uuid: '9d4d41c4b13448138907642286f46016'
+        - name: 'Healthcheck Status'
+          type: DEPENDENT
+          key: '1c.healthcheck.status'
+          description: '1 = success, 0 = failure. Extracted via JSONPath.'
+          value_type: INTEGER
+          data_type: INTEGER
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.status'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: 'c0af22c3841e410db805f660a9c98736'
+        - name: 'Error'
+          type: DEPENDENT
+          key: '1c.healthcheck.error'
+          description: 'Error message. Extracted via JSONPath.'
+          value_type: TEXT
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.error'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '8e678c86ad174b95870591b016aca481'
+        - name: 'Platform Version'
+          type: DEPENDENT
+          key: '1c.healthcheck.version'
+          description: '1C:Enterprise platform version. Extracted via JSONPath.'
+          value_type: TEXT
+          history: 90d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.platformVersion'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '0fde06bd1883420a92336c4ed8bac09b'
+        - name: 'Total Execution Time'
+          type: DEPENDENT
+          key: '1c.healthcheck.total_ms'
+          description: 'Total execution time in ms. Extracted via JSONPath.'
+          value_type: FLOAT
+          units: ms
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.timings.total_ms'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '25fbfd24b7164a39a618a74ec0ca71c1'
+        - name: 'Login Page Load Time'
+          type: DEPENDENT
+          key: '1c.healthcheck.login_page_ms'
+          description: 'Login page load time in ms. Extracted via JSONPath.'
+          value_type: FLOAT
+          units: ms
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.timings.login_page_ms'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '5d690cc1012449199b0cfe79a54c4bb3'
+        - name: 'Login Authentication Time'
+          type: DEPENDENT
+          key: '1c.healthcheck.login_ms'
+          description: 'Login auth time in ms. Extracted via JSONPath.'
+          value_type: FLOAT
+          units: ms
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.timings.login_ms'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: 'bc8603219cce4e15a8cd40cb95b4cb8a'
+        - name: 'Quick Menu Load Time'
+          type: DEPENDENT
+          key: '1c.healthcheck.quick_menu_ms'
+          description: 'Quick menu load time in ms. Extracted via JSONPath.'
+          value_type: FLOAT
+          units: ms
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.timings.quick_menu_ms'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '3903184c51db4e168acb9d891d053f18'
+        - name: 'Messages Check Time'
+          type: DEPENDENT
+          key: '1c.healthcheck.messages_ms'
+          description: 'Messages check time in ms. Extracted via JSONPath.'
+          value_type: FLOAT
+          units: ms
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.timings.messages_ms'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '10e7ba6c978d414286131248082a3970'
+        - name: 'About Dialog Open Time'
+          type: DEPENDENT
+          key: '1c.healthcheck.about_open_ms'
+          description: 'About dialog open time in ms. Extracted via JSONPath.'
+          value_type: FLOAT
+          units: ms
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.timings.about_open_ms'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '3b767ddaef244bfdb4c4d0e389f3a509'
+        - name: 'Messages Text'
+          type: DEPENDENT
+          key: '1c.healthcheck.messages_text'
+          description: 'All messages concatenated with newline. Extracted via JSONPath.'
+          value_type: TEXT
+          history: 90d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.messages'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '7b2677027fa64d5dbab7fbac26c83eff'
+        - name: 'Licenses JSON'
+          type: DEPENDENT
+          key: '1c.healthcheck.licenses_json'
+          description: 'Full licenses array as JSON. Extracted via JSONPath.'
+          value_type: TEXT
+          history: 30d
+          master_item:
+            key: '1c.healthcheck.report'
+          preprocessing:
+            - type: JSONPATH
+              params: '$.licenses'
+              error_handler: DISCARD_VALUE
+              error_handler_params: ''
+          uuid: '444a318593be4d6db0c406943f039373'
+      triggers:
+        - name: '{HOST.NAME}: 1C Healthcheck FAILED'
+          expression: '{Template 1C Web Client Healthcheck:1c.healthcheck.status.last()}=0'
+          severity: AVERAGE
+          description: '1C Web Client healthcheck returned failure status'
+          uuid: '2d0492ce180b470cac4c241736d2bcac'
+        - name: '{HOST.NAME}: Healthcheck slow (>30s)'
+          expression: '{Template 1C Web Client Healthcheck:1c.healthcheck.total_ms.last()}>30000'
+          severity: WARNING
+          description: 'Healthcheck took more than 30 seconds'
+          uuid: '016c04c06c18453b9ea708289b1fce2e'
+        - name: '{HOST.NAME}: Platform version changed'
+          expression: '{Template 1C Web Client Healthcheck:1c.healthcheck.version.nodata(1h)}=1&{Template 1C Web Client Healthcheck:1c.healthcheck.version.diff()}<>0'
+          severity: INFO
+          manual_close: 'YES'
+          description: '1C platform version has changed or no data for 1 hour'
+          uuid: '1600f5e36c9045b29a8518f2af48174e'
+        - name: '{HOST.NAME}: Healthcheck error occurred'
+          expression: '{Template 1C Web Client Healthcheck:1c.healthcheck.error.nodata(1h)}=1&{Template 1C Web Client Healthcheck:1c.healthcheck.status.last()}=0'
+          severity: HIGH
+          manual_close: 'YES'
+          description: 'Healthcheck error occurred or no data for 1 hour'
+          uuid: 'dad53aae5a894f05baad00b59ad48fba'

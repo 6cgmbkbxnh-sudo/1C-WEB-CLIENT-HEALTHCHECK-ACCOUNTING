@@ -84,7 +84,11 @@ class ZabbixSender {
   }
 
   close() {
-    this.client.close();
+    try {
+      this.client.close();
+    } catch (e) {
+      // Socket may already be closed
+    }
   }
 }
 

@@ -191,68 +191,33 @@ async function runHealthcheck() {
 
 /**
  * Build Zabbix items array from test results
+ * Sends a single RAW item with full JSON report.
+ * Zabbix template extracts fields via JSONPath in dependent items.
  */
 function buildZabbixItems(hostname, results) {
-  const items = [
-    // Overall status: 1 = success, 0 = failure
+  // Build messages string (concatenated with newline)
+  const messagesText = results.messages.join('\n');
+
+  // Build full report JSON
+  const report = {
+    success: results.success,
+    status: results.success ? 1 : 0,
+    error: results.error || null,
+    platformVersion: results.platformVersion || 'unknown',
+    timings: results.timings || {},
+    messages: messagesText,
+    licenses: results.licenses || [],
+    timestamp: new Date().toISOString(),
+  };
+
+  // Single RAW item with full JSON report
+  return [
     {
       host: hostname,
-      key: '1c.healthcheck.status',
-      value: results.success ? '1' : '0',
+      key: '1c.healthcheck.report',
+      value: JSON.stringify(report),
     },
   ];
-
-  // Timings
-  if (results.timings.login_page_ms) {
-    items.push({ host: hostname, key: '1c.healthcheck.login_page_ms', value: results.timings.login_page_ms });
-  }
-  if (results.timings.login_ms) {
-    items.push({ host: hostname, key: '1c.healthcheck.login_ms', value: results.timings.login_ms });
-  }
-  if (results.timings.quick_menu_ms) {
-    items.push({ host: hostname, key: '1c.healthcheck.quick_menu_ms', value: results.timings.quick_menu_ms });
-  }
-  if (results.timings.messages_ms) {
-    items.push({ host: hostname, key: '1c.healthcheck.messages_ms', value: results.timings.messages_ms });
-  }
-  if (results.timings.about_open_ms) {
-    items.push({ host: hostname, key: '1c.healthcheck.about_open_ms', value: results.timings.about_open_ms });
-  }
-  if (results.timings.total_ms) {
-    items.push({ host: hostname, key: '1c.healthcheck.total_ms', value: results.timings.total_ms });
-  }
-
-  // Platform version as a string item
-  if (results.platformVersion && results.platformVersion !== 'unknown') {
-    items.push({ host: hostname, key: '1c.healthcheck.version', value: results.platformVersion });
-  }
-
-  // Messages count
-  items.push({ host: hostname, key: '1c.healthcheck.messages_count', value: results.messages.length });
-
-  // Licenses
-  items.push({ host: hostname, key: '1c.healthcheck.licenses_count', value: results.licenses.length });
-
-  // Per-license items (used/total)
-  results.licenses.forEach((lic, idx) => {
-    items.push({
-      host: hostname,
-      key: `1c.healthcheck.license_used[${idx}]`,
-      value: lic.used,
-    });
-    items.push({
-      host: hostname,
-      key: `1c.healthcheck.license_total[${idx}]`,
-      value: lic.total,
-    });
-  });
-
-  // Error if any
-  if (results.error) {
-    items.push({ host: hostname, key: '1c.healthcheck.error', value: results.error });
-  }
-
-  return items;
 }
 
 // Run
