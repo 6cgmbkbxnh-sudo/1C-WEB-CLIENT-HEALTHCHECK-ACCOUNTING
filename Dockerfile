@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright:v1.40.0-jammy
+FROM mcr.microsoft.com/playwright:v1.61.1-jammy
 
 # Install 1C web client dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,6 +13,9 @@ COPY package.json package-lock.json ./
 
 # Install dependencies
 RUN npm ci --only=production
+
+# Install Playwright browsers
+RUN npx playwright install --with-deps firefox
 
 # Copy application files
 COPY run-healthcheck.js ./
