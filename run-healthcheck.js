@@ -92,13 +92,28 @@ async function runHealthcheck() {
     console.log('[4/5] Checking Messages...');
     await expect(page.locator('#messageCell')).toContainText('Messages:', { timeout: 10000 });
 
-    // Extract messages
-    const msgDivs = page.locator('#messageCell.messages #messageDiv div[id^="msg"]');
-    const messages = await msgDivs.all();
+    // Wait for actual messages to load (they appear dynamically 2-3 seconds after login)
+    // Toolbar buttons (msgCopy, msgClear, msgClose) appear immediately, real messages (msg0, msg1) come later
+    // CSS selectors don't support regex, so use waitForFunction with proper ID check
+    await page.waitForFunction(() => {
+      const els = document.querySelectorAll('[id^="msg"]');
+      return Array.from(els).some(el => /^msg\d+$/.test(el.id));
+    }, { timeout: 10000 });
+
+    // Extract messages from 1C web client
+    // Messages have id="msg0", "msg1", "msg2" (digits only after "msg")
+    // Toolbar buttons have id="msgCopy", "msgClear", "msgClose" (letters after "msg")
+    const allMsgElements = page.locator('[id^="msg"]');
+    const allMsgElementsList = await allMsgElements.all();
     const messagesArray = [];
-    for (const msg of messages) {
-      const dataText = await msg.getAttribute('data-text');
-      if (dataText) messagesArray.push(dataText);
+    for (const el of allMsgElementsList) {
+      const id = await el.getAttribute('id');
+      // Only extract elements with id matching "msg" + digits (actual messages)
+      if (!id || !/^msg\d+$/.test(id)) continue;
+      const text = await el.textContent();
+      if (text && text.trim()) {
+        messagesArray.push(text.trim());
+      }
     }
     results.messages = messagesArray;
     results.timings.messages_ms = Date.now() - t0;
@@ -172,10 +187,19 @@ async function runHealthcheck() {
     try {
       const items = buildZabbixItems(config.zabbix.hostname, results);
       const response = await zabbix.send(items);
-      results.zabbixSent = true;
-      console.log(`Zabbix response: ${response.raw}`);
+      // Parse response to check if data was actually processed
+      const respData = JSON.parse(response.raw);
+      if (respData.response === 'success' && respData.info && respData.info.includes('processed: 1')) {
+        results.zabbixSent = true;
+        console.log(`Zabbix response: ${response.raw}`);
+      } else {
+        results.zabbixSent = false;
+        results.zabbixError = `Response: ${response.raw}`;
+        console.error(`Zabbix did not process data: ${response.raw}`);
+      }
     } catch (zbxErr) {
       console.error(`Failed to send to Zabbix: ${zbxErr.message}`);
+      results.zabbixSent = false;
       results.zabbixError = zbxErr.message;
     }
     zabbix.close();
@@ -198,13 +222,19 @@ function buildZabbixItems(hostname, results) {
   // Build messages string (concatenated with newline)
   const messagesText = results.messages.join('\n');
 
+  // Convert timings from ms to seconds (decimal numbers)
+  const timingsSec = {};
+  for (const [key, value] of Object.entries(results.timings || {})) {
+    timingsSec[key] = value / 1000;
+  }
+
   // Build full report JSON
   const report = {
     success: results.success,
     status: results.success ? 1 : 0,
     error: results.error || null,
     platformVersion: results.platformVersion || 'unknown',
-    timings: results.timings || {},
+    timings: timingsSec,
     messages: messagesText,
     licenses: results.licenses || [],
     timestamp: new Date().toISOString(),
