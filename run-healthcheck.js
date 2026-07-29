@@ -13,7 +13,7 @@
  *   - TEST_TIMEOUT       : Global timeout in ms (default: 60000)
  */
 
-const { chromium, expect } = require('@playwright/test');
+const { chromium, expect, firefox } = require('@playwright/test');
 const ZabbixSender = require('./zabbix_sender');
 
 // --- Configuration from environment ---
@@ -55,7 +55,7 @@ async function runHealthcheck() {
   const t0 = Date.now();
 
   try {
-    browser = await chromium.launch({
+    browser = await firefox.launch({
       headless: true,
       firefoxUserPrefs: {
         // Use Firefox for compatibility with 1C web client
@@ -77,9 +77,9 @@ async function runHealthcheck() {
 
     console.log('[2/5] Logging in...');
     await page.getByRole('textbox', { name: 'User' }).click();
-    await page.getByRole('textbox', { name: 'User' }).fill(config.test.user);
+    await page.getByRole('textbox', { name: 'User' }).fill(`${config.test.user}`);
     await page.getByRole('textbox', { name: 'Password' }).click();
-    await page.getByRole('textbox', { name: 'Password' }).fill(config.test.password);
+    await page.getByRole('textbox', { name: 'Password' }).fill(`${config.test.password}`);
     await page.getByRole('button', { name: 'Log in' }).click();
     results.timings.login_ms = Date.now() - t0;
 

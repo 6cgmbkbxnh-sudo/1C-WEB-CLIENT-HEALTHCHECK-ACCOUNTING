@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test": "node run-healthcheck.js",
+    "docker:build": "docker build -t 1c-healthcheck .",
+    "docker:run": "docker run --rm -e ZABBIX_HOST=localhost -e ZABBIX_PORT=10051 -e ZABBIX_HOSTNAME=1c-healthcheck -e TEST_ENDPOINT=https://1c.sitrak.ru/Sitrak_Cache/en_US/ -e TEST_USER=test -e TEST_PASSWORD=Bi3fa8ta 1c-healthcheck"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -11,5 +15,8 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.1.1"
+  },
+  "dependencies": {
+    "node-zabbix-sender": "^1.1.0"
   }
 }
