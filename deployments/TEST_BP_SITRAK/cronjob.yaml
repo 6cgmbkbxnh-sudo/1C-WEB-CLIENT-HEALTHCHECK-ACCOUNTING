@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: test-bp-sitrak
+  namespace: 1c-web-client-monitors
+  labels:
+    app: test-bp-sitrak
+    component: healthcheck
+spec:
+  schedule: "*/5 * * * *"
+  successfulJobsHistoryLimit: 36
+  failedJobsHistoryLimit: 10
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      template:
+        spec:
+          containers:
+            - name: healthcheck
+              image: ghcr.io/6cgmbkbxnh-sudo/1c-web-client-healthcheck:latest
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+              envFrom:
+                - secretRef:
+                    name: test-bp-sitrak
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: ghcr-pull-secret
