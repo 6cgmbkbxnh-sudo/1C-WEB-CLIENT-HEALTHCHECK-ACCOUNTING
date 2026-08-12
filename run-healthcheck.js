@@ -173,6 +173,23 @@ async function runHealthcheck() {
     console.log(`✓ Messages count: ${messagesArray.length}`);
     console.log(`✓ Licenses count: ${licenses.length}`);
 
+    // Close About dialog
+    console.log('[Closing About dialog...]');
+    await page.locator('#aboutContainer').locator('button', { hasText: 'OK' }).click();
+    await page.waitForTimeout(500);
+
+    // Step 6: Logout
+    console.log('[6/6] Logging out...');
+    // Click on user profile (LogoutButton) to open user menu
+    await page.locator('#LogoutButton').click();
+    // Click "Sign out (exit)" in user menu
+    await page.locator('#LogoutCloseButton').click();
+    // Confirm exit in dialog
+    await page.locator('#form3_Button0 a').click();
+    // Wait for logout to complete
+    await page.waitForTimeout(2000);
+    results.timings.logout_ms = Date.now() - t0;
+
   } catch (err) {
     results.error = err.message;
     results.timings.total_ms = Date.now() - t0;
