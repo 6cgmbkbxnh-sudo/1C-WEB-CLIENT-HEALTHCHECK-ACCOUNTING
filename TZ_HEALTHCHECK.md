@@ -28,7 +28,31 @@
 | Browser | Firefox (headless) |
 | Monitoring | Zabbix Sender (TCP protocol, node-zabbix-sender) |
 | Containerization | Docker |
-| Тестирование | Playwright Test (TypeScript) |
+
+### 1.4. Архитектура проекта
+
+```
+.
+├── run-healthcheck.js           # Главный скрипт (Node.js, CommonJS)
+├── zabbix_sender.js             # Zabbix Sender wrapper (CommonJS)
+├── Dockerfile                   # Docker-образ на базе Playwright
+├── package.json                 # Зависимости
+├── README.md                    # Документация по запуску
+├── zabbix/
+│   └── zabbix_template.yaml     # Zabbix Template v8.0 (12 items)
+├── deployments/
+│   ├── common/
+│   │   ├── namespace.yaml       # Kubernetes namespace
+│   │   └── image-pull-secret.yaml  # Docker registry secret
+│   ├── Sitrak_Cache/
+│   │   ├── cronjob.yaml         # CronJob для Sitrak_Cache
+│   │   └── secret.yaml          # Секрет с переменными окружения
+│   └── TEST_BP_SITRAK/
+│       ├── cronjob.yaml         # CronJob для TEST_BP_SITRAK
+│       └── secret.yaml          # Секрет с переменными окружения
+└── archive/                     # Архив неиспользуемых файлов
+    └── old-tests/               # Старые Playwright-тесты и конфиги
+```
 
 ---
 
