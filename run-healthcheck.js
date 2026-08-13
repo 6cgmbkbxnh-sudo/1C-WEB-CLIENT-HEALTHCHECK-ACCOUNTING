@@ -24,9 +24,9 @@ const config = {
     hostname: process.env.ZABBIX_HOSTNAME || '1c-healthcheck',
   },
   test: {
-    endpoint: process.env.TEST_ENDPOINT || 'https://1c.sitrak.ru/Sitrak_Cache/en_US/',
-    user: process.env.TEST_USER || 'test',
-    password: process.env.TEST_PASSWORD || 'Bi3fa8ta',
+    endpoint: process.env.TEST_ENDPOINT || 'https://1c.sitrak.ru/TEST_BP_SITRAK/ru/',
+    user: process.env.TEST_USER || 'monitoring',
+    password: process.env.TEST_PASSWORD || 'XgarZPqLjf6vJLm8ZBXQ',
     timeout: parseInt(process.env.TEST_TIMEOUT, 10) || 60000,
   },
 };
@@ -66,76 +66,174 @@ async function runHealthcheck() {
     // Force Firefox for 1C web client compatibility
     const context = await browser.newContext({
       userAgent: 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
+      locale: 'ru-RU',
     });
     const page = await context.newPage();
     page.setDefaultTimeout(config.test.timeout);
 
     // Step 1: Login
     console.log('[1/5] Navigating to login page...');
-    await page.goto(config.test.endpoint);
+    await page.goto(config.test.endpoint, { waitUntil: 'domcontentloaded' });
     results.timings.login_page_ms = Date.now() - t0;
 
+    // Wait for auth window to appear
+    await page.waitForSelector('#authWindow_basic_login', { timeout: 15000 });
+
     console.log('[2/5] Logging in...');
-    await page.getByRole('textbox', { name: 'User' }).click();
-    await page.getByRole('textbox', { name: 'User' }).fill(`${config.test.user}`);
-    await page.getByRole('textbox', { name: 'Password' }).click();
-    await page.getByRole('textbox', { name: 'Password' }).fill(`${config.test.password}`);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    // Use ID-based selectors for 1C auth form
+    await page.fill('#authWindow_basic_login', `${config.test.user}`);
+    await page.fill('#authWindow_basic_password', `${config.test.password}`);
+    await page.click('#authWindow_basic_okButton');
     results.timings.login_ms = Date.now() - t0;
 
-    // Step 2: Verify Quick Menu
-    console.log('[3/5] Verifying Quick Menu...');
-    await expect(page.locator('#themesCell')).toBeVisible({ timeout: 10000 });
+    // Wait for left menu to be rendered (menu items have id pattern themesCell_theme_*)
+    await page.waitForFunction(() => {
+      return document.querySelectorAll('[id^="themesCell_theme_"]').length > 0;
+    }, { timeout: 15000 });
+
+    // // Close modal dialogs if present (e.g., "Работа в приложении временно ограничена")
+    // // The modal close button has text "Закрыть" - need to close it first
+    // try {
+    //   // Wait for the modal to appear and close it
+    //   const modalCloseBtn = page.locator('text="Закрыть"').first();
+    //   if (await modalCloseBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    //     await modalCloseBtn.click();
+    //     await page.waitForTimeout(1000);
+    //     console.log('[Modal closed]');
+    //   }
+    // } catch (e) {
+    //   // No modal to close
+    // }
+
+    // Step 2: Verify Left Menu items for 1С:Бухгалтерия
+    // Menu items are div.themeBoxName > span with text content, rendered in themesCell_theme_* elements
+    console.log('[3/5] Checking Left Menu items...');
+    const leftMenuItems = [
+      'Главное',
+      'Руководителю',
+      'Банк и касса',
+      'Продажи',
+      'Покупки',
+      'Склад',
+      'Производство',
+      'ОС и НМА',
+      'Зарплата и кадры',
+      'Операции',
+      'Отчеты',
+      'Справочники',
+      'Администрирование',
+      'Помощь',
+    ];
+    
+    // Use page.evaluate to find menu items in the DOM directly — already waited above via waitForFunction
+    const foundMenuItems = await page.evaluate((items) => {
+      let count = 0;
+      for (const itemName of items) {
+        // Menu items are div.themeBoxName with the text inside
+        const boxes = document.querySelectorAll('div.themeBoxName');
+        for (const box of boxes) {
+          const text = box.textContent?.trim();
+          if (text === itemName) {
+            count++;
+            break;
+          }
+        }
+      }
+      return count;
+    }, leftMenuItems);
+    
+    results.timings.left_menu_ms = Date.now() - t0;
+    results.leftMenuItemsFound = foundMenuItems;
+    results.leftMenuTotal = leftMenuItems.length;
+    console.log(`  Found ${foundMenuItems}/${leftMenuItems.length} menu items`);
+
+    // Step 3: Verify Quick Menu (info panel area in 1C:BP)
+    console.log('[3/5] Verifying Info Panel...');
+    // Check for the main content area with "Начальная страница" or organization info
+    const mainContent = page.locator('[id^="VW_page"]');
+    const mainContentVisible = await mainContent.count().catch(() => 0);
+    if (mainContentVisible > 0) {
+      console.log(`✓ Main content area found`);
+    }
     results.timings.quick_menu_ms = Date.now() - t0;
 
-    // Step 3: Verify Messages
-    console.log('[4/5] Checking Messages...');
-    await expect(page.locator('#messageCell')).toContainText('Messages:', { timeout: 10000 });
+    // // Step 4: Check Messages (optional - may not appear in 1C:BP)
+    // console.log('[4/5] Checking Messages...');
+    // // Messages have id="msg0", "msg1", "msg2" (digits only after "msg")
+    // // Toolbar buttons have id="msgCopy", "msgClear", "msgClose" (letters after "msg")
+    // // In 1C:BP messages may not appear, so use shorter timeout
+    // let messagesArray = [];
+    // try {
+    //   await page.waitForFunction(() => {
+    //     const els = document.querySelectorAll('[id^="msg"]');
+    //     return Array.from(els).some(el => /^msg\d+$/.test(el.id));
+    //   }, { timeout: 5000 });
+      
+    //   // Extract messages from 1C web client
+    //   const allMsgElements = page.locator('[id^="msg"]');
+    //   const allMsgElementsList = await allMsgElements.all();
+    //   for (const el of allMsgElementsList) {
+    //     const id = await el.getAttribute('id');
+    //     // Only extract elements with id matching "msg" + digits (actual messages)
+    //     if (!id || !/^msg\d+$/.test(id)) continue;
+    //     const text = await el.textContent();
+    //     if (text && text.trim()) {
+    //       messagesArray.push(text.trim());
+    //     }
+    //   }
+    // } catch (e) {
+    //   // No messages in 1C:BP, that's OK
+    //   console.log('  No messages found (expected for 1C:BP)');
+    // }
+    // results.messages = messagesArray;
+    // results.timings.messages_ms = Date.now() - t0;
+    // console.log(`  Messages count: ${messagesArray.length}`);
 
-    // Wait for actual messages to load (they appear dynamically 2-3 seconds after login)
-    // Toolbar buttons (msgCopy, msgClear, msgClose) appear immediately, real messages (msg0, msg1) come later
-    // CSS selectors don't support regex, so use waitForFunction with proper ID check
-    await page.waitForFunction(() => {
-      const els = document.querySelectorAll('[id^="msg"]');
-      return Array.from(els).some(el => /^msg\d+$/.test(el.id));
-    }, { timeout: 10000 });
-
-    // Extract messages from 1C web client
-    // Messages have id="msg0", "msg1", "msg2" (digits only after "msg")
-    // Toolbar buttons have id="msgCopy", "msgClear", "msgClose" (letters after "msg")
-    const allMsgElements = page.locator('[id^="msg"]');
-    const allMsgElementsList = await allMsgElements.all();
-    const messagesArray = [];
-    for (const el of allMsgElementsList) {
-      const id = await el.getAttribute('id');
-      // Only extract elements with id matching "msg" + digits (actual messages)
-      if (!id || !/^msg\d+$/.test(id)) continue;
-      const text = await el.textContent();
-      if (text && text.trim()) {
-        messagesArray.push(text.trim());
+    // Step 4: Open About dialog (1С:Бухгалтерия - click "О программе...")
+    console.log('[4/5] Opening About dialog...');
+    // In 1C:BP, "О программе..." is in the top bar with id="captionbarAbout"
+    // It may be hidden, so use JS click to bypass visibility checks
+    try {
+      await page.evaluate(() => {
+        const aboutBtn = document.getElementById('captionbarAbout');
+        if (aboutBtn) {
+          aboutBtn.click();
+          return true;
+        }
+        return false;
+      });
+    } catch (e) {
+      // Try clicking by text in the left menu
+      try {
+        const aboutInMenu = page.getByText('О программе...', { exact: true }).first();
+        if (await aboutInMenu.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await aboutInMenu.click();
+        }
+      } catch (e2) {
+        console.log('  About dialog button not found, skipping');
       }
     }
-    results.messages = messagesArray;
-    results.timings.messages_ms = Date.now() - t0;
-
-    // Step 4: Open About dialog
-    console.log('[5/5] Opening About dialog...');
-    await page.locator('div').filter({ hasText: 'Messages:' }).nth(2).click();
-    await page.getByTitle('Service and settings').click();
-    await page.locator('#MenuAboutButton').click();
     await expect(page.locator('#aboutContainer')).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(2000);
+    // Small pause for About dialog to finish rendering
+    await page.waitForFunction(() => {
+      const container = document.getElementById('aboutContainer');
+      return container && container.offsetHeight > 0 && window.getComputedStyle(container).display !== 'none';
+    }, { timeout: 5000 });
     results.timings.about_open_ms = Date.now() - t0;
 
     // Step 5: Parse version and licenses
     const aboutText = await page.locator('#aboutContainer').textContent();
 
-    const platformVersion = aboutText.match(/1C:Enterprise 8\.3 \((\d+\.\d+\.\d+\.\d+)\)/)?.[1] || 'unknown';
+    // 1C:BP uses Russian format: 1С:Предприятие 8.3 (8.3.27.1688)
+    // Also supports English: 1C:Enterprise 8.3 (8.3.27.1688)
+    const platformVersion = aboutText.match(/1[ССС]?:Enterprise\s+8\.3\s+\((\d+\.\d+\.\d+\.\d+)\)/)?.[1] ||
+                            aboutText.match(/1С:Предприятие\s+8\.3\s+\((\d+\.\d+\.\d+\.\d+)\)/)?.[1] ||
+                            'unknown';
     results.platformVersion = platformVersion;
 
-    // Parse licenses
+    // Parse licenses - 1C:BP uses "Текущая:" instead of "Current:"
     const licenses = [];
-    const currentSection = aboutText.split('Current:')[1];
+    const currentSection = aboutText.split('Текущая:')[1];
     if (currentSection) {
       const lines = currentSection.split('\n');
       for (const line of lines) {
@@ -146,7 +244,8 @@ async function runHealthcheck() {
         const countMatch = trimmed.match(/(\d+)\/(\d+)/);
         const used = countMatch ? parseInt(countMatch[1], 10) : 0;
         const total = countMatch ? parseInt(countMatch[2], 10) : 0;
-        const timestamps = trimmed.match(/(\d+\/\d+\/\d+\s+\d+:\d+:\d+\s+[AP]M)/g);
+        // 1C:BP uses Russian date format: DD.MM.YYYY HH:MM:SS
+        const timestamps = trimmed.match(/(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2})/g);
         const issue = timestamps ? timestamps[0] : '';
         const expiry = timestamps && timestamps[1] ? timestamps[1] : '';
         const companyMatch = trimmed.match(/"([^"]+)"/);
@@ -176,18 +275,29 @@ async function runHealthcheck() {
     // Close About dialog
     console.log('[Closing About dialog...]');
     await page.locator('#aboutContainer').locator('button', { hasText: 'OK' }).click();
-    await page.waitForTimeout(500);
+    await page.waitForFunction(() => {
+      return !document.getElementById('aboutContainer') || 
+             document.getElementById('aboutContainer').offsetHeight === 0 ||
+             window.getComputedStyle(document.getElementById('aboutContainer')).display === 'none';
+    }, { timeout: 5000 });
 
-    // Step 6: Logout
-    console.log('[6/6] Logging out...');
-    // Click on user profile (LogoutButton) to open user menu
+    // Step 5: Logout
+    console.log('[5/5] Logging out...');
+    
+    // 1) Click user profile button (#LogoutButton) to open logout menu
     await page.locator('#LogoutButton').click();
-    // Click "Sign out (exit)" in user menu
-    await page.locator('#LogoutCloseButton').click();
-    // Confirm exit in dialog
-    await page.locator('#form3_Button0 a').click();
-    // Wait for logout to complete
-    await page.waitForTimeout(2000);
+    
+    // 2) Click "Завершить работу (выйти)" in the dropdown menu
+    await page.locator('#LogoutCloseButton').click({ timeout: 5000 });
+    
+    // 3) Confirm in the modal dialog — click "Завершить работу" (exact match, not "Завершить работу (выйти)")
+    await page.getByText('Завершить работу', { exact: true }).click({ timeout: 5000 });
+    
+    // 4) Wait for exit page (exit.html with "До новых встреч!")
+    await page.waitForFunction(() => {
+      return document.body.textContent?.includes('До новых встреч!');
+    }, { timeout: 10000 });
+    console.log('  Logged out successfully');
     results.timings.logout_ms = Date.now() - t0;
 
   } catch (err) {
