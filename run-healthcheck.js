@@ -8,8 +8,8 @@
  *   - ZABBIX_PORT        : Zabbix server port (default: 10051)
  *   - ZABBIX_HOSTNAME    : Hostname registered in Zabbix (default: 1c-healthcheck)
  *   - TEST_ENDPOINT      : URL to test (default: https://1c.sitrak.ru/Sitrak_Cache/en_US/)
- *   - TEST_USER          : Login username (default: test)
- *   - TEST_PASSWORD      : Login password (default: Bi3fa8ta)
+ *   - TEST_USER          : Login username 
+ *   - TEST_PASSWORD      : Login password 
  *   - TEST_TIMEOUT       : Global timeout in ms (default: 60000)
  */
 
@@ -25,8 +25,8 @@ const config = {
   },
   test: {
     endpoint: process.env.TEST_ENDPOINT || 'https://1c.sitrak.ru/TEST_BP_SITRAK/ru/',
-    user: process.env.TEST_USER || 'monitoring',
-    password: process.env.TEST_PASSWORD || 'XgarZPqLjf6vJLm8ZBXQ',
+    user: process.env.TEST_USER || '',
+    password: process.env.TEST_PASSWORD || '',
     timeout: parseInt(process.env.TEST_TIMEOUT, 10) || 60000,
   },
 };
