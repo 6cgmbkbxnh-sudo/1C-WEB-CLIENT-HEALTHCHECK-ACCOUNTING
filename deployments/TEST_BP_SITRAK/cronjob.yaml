@@ -18,7 +18,7 @@ spec:
         spec:
           containers:
             - name: healthcheck
-              image: ghcr.io/6cgmbkbxnh-sudo/1c-web-client-healthcheck:latest
+              image: ghcr.io/6cgmbkbxnh-sudo/1c-web-client-healthcheck-accounting:latest
               imagePullPolicy: Always
               resources:
                 requests:
