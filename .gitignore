@@ -4,9 +4,17 @@ node_modules/
 /test-results/
 /playwright-report/
 /blob-report/
-/playwright/.cache/
-/playwright/.auth/
+/.playwright/
 
 # macOS
 .DS_Store
 deployments/.DS_Store
+
+# Claude
+.claude/
+
+# Misc
+.tz-preview.html
+
+# Debug backup
+archive/debug-backup/

@@ -55,24 +55,21 @@ async function runHealthcheck() {
   const t0 = Date.now();
 
   try {
-    browser = await firefox.launch({
-      headless: false,
-      firefoxUserPrefs: {
-        // Use Firefox for compatibility with 1C web client
-        'browser.startup.homepage': 'about:blank',
-      },
+    // Use Chromium for reliable locale handling (Firefox redirects to en_US)
+    browser = await chromium.launch({
+      headless: true,
     });
 
-    // Force Firefox for 1C web client compatibility
+    // Set Russian locale context for 1C web client
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/115.0',
       locale: 'ru-RU',
+      timezoneId: 'Europe/Moscow',
     });
     const page = await context.newPage();
     page.setDefaultTimeout(config.test.timeout);
 
     // Step 1: Login
-    console.log('[1/5] Navigating to login page...');
+    console.log('[1/9] Navigating to login page...');
     await page.goto(config.test.endpoint, { waitUntil: 'domcontentloaded' });
     results.timings.login_page_ms = Date.now() - t0;
 
@@ -144,11 +141,13 @@ async function runHealthcheck() {
     results.timings.quick_menu_ms = Date.now() - t0;
 
     // Step 4: Open About dialog via captionbarMore menu → "О программе..."
+    // Click #captionbarMore ONCE to open the dropdown submenu
+    // Wait for #MenuAboutButton to appear (submenu item with text "О&nbsp;программе..." - non-breaking space)
+    // Use ID selector because text contains &nbsp; which doesn't match regular space in getByText
     console.log('[5/9] Opening About dialog...');
-    await page.getByTitle('Сервис и настройки').click();
-    await page.getByTitle('Сервис и настройки').click();
-    await page.getByTitle('Сервис и настройки').click();
-    await page.getByText('О программе...').click();
+    await page.locator('#captionbarMore').click();
+    await page.waitForSelector('#MenuAboutButton', { timeout: 15000 });
+    await page.locator('#MenuAboutButton').click();
     console.log('[6/9] About loaded dialog...');
 
     // Step 5: Parse version and licenses
@@ -215,13 +214,16 @@ async function runHealthcheck() {
     console.log('[8/9] Logging out...');
     
     // 1) Click user profile button (#LogoutButton) to open logout menu
+    await page.waitForSelector('#LogoutButton', {timeout: 1000});
     await page.locator('#LogoutButton').click();
     
     // 2) Click "Завершить работу (выйти)" in the dropdown menu
+    await page.waitForSelector('#LogoutCloseButton', {timeout: 2000});
     await page.locator('#LogoutCloseButton').click({ timeout: 5000 });
     
     // 3) Confirm in the modal dialog — click "Завершить работу"
-    await page.locator('text=Завершить работу').click({ timeout: 5000 });
+    await page.waitForSelector('text="Завершить работу"', {timeout: 4000});
+    await page.locator('text="Завершить работу"').click({ timeout: 5000 });
     
     // 4) Wait for exit page (exit.html with "До новых встреч!")
     await page.waitForFunction(() => {
