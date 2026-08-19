@@ -15,7 +15,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --only=production
 
 # Install Playwright browsers
-RUN npx playwright install --with-deps firefox
+RUN npx playwright install --with-deps chromium
 
 # Copy application files
 COPY run-healthcheck.js ./
